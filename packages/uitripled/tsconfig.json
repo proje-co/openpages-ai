@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig/react-library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": [
+    "src",
+    "registry.ts",
+    "types.ts"
+  ]
+}

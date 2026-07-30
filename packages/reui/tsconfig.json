@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig/react-library.json",
+  "include": [
+    "src",
+    "registry.ts"
+  ],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "strict": false,
+    "skipLibCheck": true
+  }
+}

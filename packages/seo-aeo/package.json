@@ -1,0 +1,23 @@
+{
+  "name": "@openpages/seo-aeo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json || true",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@openpages/document-schema": "workspace:*",
+    "schema-dts": "^1.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@openpages/sites",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@openpages/blocks": "workspace:*",
+    "@openpages/reui": "workspace:*",
+    "@openpages/uitripled": "workspace:*",
+    "@openpages/document-schema": "workspace:*",
+    "@openpages/renderer": "workspace:*",
+    "@openpages/seo-aeo": "workspace:*",
+    "@prisma/client": "^6.1.0",
+    "next": "^15.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "prisma": "^6.1.0",
+    "typescript": "^5.7.2"
+  },
+  "prisma": {
+    "schema": "../saas/prisma/schema.prisma"
+  }
+}

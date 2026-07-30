@@ -1,0 +1,11 @@
+{
+  "name": "@openpages/web-builder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Optional standalone builder shell — primary editor lives in @openpages/saas /editor",
+  "scripts": {
+    "dev": "echo 'Use pnpm --filter @openpages/saas dev and open /editor/:siteId'",
+    "build": "echo 'web-builder is a pointer package'",
+    "typecheck": "tsc -p tsconfig.json --noEmit || true"
+  }
+}

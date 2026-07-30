@@ -1,0 +1,31 @@
+{
+  "name": "openpages-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OpenPages AI — AI-native, SEO/AEO focused block-based website studio",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build && pnpm -r --filter './apps/*' build",
+    "dev": "pnpm --parallel --filter './apps/*' --filter './packages/*' dev",
+    "dev:saas": "pnpm --filter @openpages/saas dev",
+    "dev:cms": "pnpm --filter @openpages/cms dev",
+    "dev:sites": "pnpm --filter @openpages/sites dev",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @openpages/saas db:generate",
+    "db:push": "pnpm --filter @openpages/saas db:push",
+    "db:migrate": "pnpm --filter @openpages/saas db:migrate",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @openpages/saas test:e2e",
+    "smoke": "pnpm --filter @openpages/saas exec tsx scripts/integration-smoke.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "prisma": "^6.1.0",
+      "@prisma/client": "^6.1.0"
+    }
+  }
+}

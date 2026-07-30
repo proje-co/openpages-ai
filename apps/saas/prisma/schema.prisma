@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum AssetKind {
+  IMAGE
+  VIDEO
+}
+
+enum PublicationStatus {
+  PENDING
+  LIVE
+  FAILED
+}
+
+enum DomainStatus {
+  PENDING
+  VERIFIED
+  ERROR
+}
+
+model User {
+  id             String            @id @default(cuid())
+  name           String?
+  email          String            @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String?
+  accounts       Account[]
+  sessions       Session[]
+  memberships    Membership[]
+  creditLedgers  AiCreditLedger[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Workspace {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  plan            String           @default("free")
+  aiCredits       Int              @default(200)
+  memberships     Membership[]
+  sites           Site[]
+  brandDocs       BrandDoc[]
+  keystoneLink    KeystoneLink?
+  githubConnection GitHubConnection?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Membership {
+  id          String         @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        MembershipRole @default(EDITOR)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Site {
+  id             String           @id @default(cuid())
+  workspaceId    String
+  name           String
+  slug           String
+  themeJSON      Json?
+  brandVoiceJSON Json?
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  document       SiteDocument?
+  versions       DocumentVersion[]
+  publications   Publication[]
+  domains        Domain[]
+  assets         Asset[]
+  audits         AuditReport[]
+  components     SavedComponent[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([workspaceId, slug])
+}
+
+model SiteDocument {
+  id        String   @id @default(cuid())
+  siteId    String   @unique
+  version   Int      @default(1)
+  data      Json
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+}
+
+model DocumentVersion {
+  id        String   @id @default(cuid())
+  siteId    String
+  version   Int
+  data      Json
+  label     String?
+  createdAt DateTime @default(now())
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, version])
+}
+
+model Publication {
+  id             String            @id @default(cuid())
+  siteId         String
+  status         PublicationStatus @default(PENDING)
+  snapshot       Json
+  cmsContentHash String
+  url            String?
+  createdAt      DateTime          @default(now())
+  site           Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, createdAt])
+}
+
+model Domain {
+  id        String       @id @default(cuid())
+  siteId    String
+  host      String       @unique
+  status    DomainStatus @default(PENDING)
+  isPrimary Boolean      @default(false)
+  txtToken  String?
+  site      Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  siteId      String
+  kind        AssetKind
+  url         String
+  prompt      String?
+  alt         String?
+  transcript  String?
+  width       Int?
+  height      Int?
+  contentType String?
+  provider    String?
+  meta        Json?
+  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+}
+
+model AiCreditLedger {
+  id          String   @id @default(cuid())
+  userId      String?
+  workspaceId String
+  delta       Int
+  reason      String
+  meta        Json?
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+model GitHubConnection {
+  id             String    @id @default(cuid())
+  workspaceId    String    @unique
+  installationId String?
+  accessToken    String?
+  owner          String?
+  repo           String?
+  lastExportSha  String?
+  lastExportAt   DateTime?
+  exportOnPublish Boolean  @default(false)
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model AuditReport {
+  id        String   @id @default(cuid())
+  siteId    String
+  url       String
+  scores    Json
+  raw       Json?
+  createdAt DateTime @default(now())
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model KeystoneLink {
+  id          String    @id @default(cuid())
+  workspaceId String    @unique
+  tenantKey   String
+  adminUrl    String?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model BrandDoc {
+  id          String    @id @default(cuid())
+  workspaceId String
+  title       String
+  content     String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+}
+
+model SavedComponent {
+  id        String   @id @default(cuid())
+  siteId    String
+  name      String
+  data      Json
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Plan {
+  id           String @id @default(cuid())
+  code         String @unique
+  name         String
+  monthlyPrice Int
+  aiCredits    Int
+  features     Json
+}

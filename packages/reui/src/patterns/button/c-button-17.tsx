@@ -1,0 +1,21 @@
+// @ts-nocheck
+"use client";
+
+import { Button } from "../../ui/button"
+import { IconPlaceholder } from "../../icon-placeholder"
+
+export default function Pattern() {
+  return (
+    <Button variant="secondary">
+      Open Project
+      <IconPlaceholder
+        lucide="ExternalLinkIcon"
+        tabler="IconExternalLink"
+        hugeicons="LinkSquare01Icon"
+        phosphor="ArrowSquareOutIcon"
+        remixicon="RiExternalLinkLine"
+        aria-hidden="true"
+      />
+    </Button>
+  )
+}

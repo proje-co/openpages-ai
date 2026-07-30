@@ -1,0 +1,22 @@
+{
+  "name": "@openpages/cms",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "keystone dev --port 3001 || node lite-server.mjs",
+    "dev:lite": "node lite-server.mjs",
+    "build": "keystone build || echo 'use lite server'",
+    "start": "keystone start --port 3001 || node lite-server.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit || true"
+  },
+  "dependencies": {
+    "@keystone-6/auth": "^8.0.0",
+    "@keystone-6/core": "^5.8.0",
+    "@keystone-6/fields-document": "^9.0.0",
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

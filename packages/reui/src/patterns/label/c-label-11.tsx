@@ -1,0 +1,21 @@
+// @ts-nocheck
+"use client";
+
+import { Field, FieldError } from "../../ui/field"
+import { Input } from "../../ui/input"
+import { Label } from "../../ui/label"
+
+export default function Pattern() {
+  return (
+    <Field className="w-full max-w-xs" data-invalid="true">
+      <Label htmlFor="label-error">Email</Label>
+      <Input
+        id="label-error"
+        type="email"
+        defaultValue="invalid-email"
+        aria-invalid="true"
+      />
+      <FieldError>Please enter a valid email address</FieldError>
+    </Field>
+  )
+}

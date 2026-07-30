@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: openpages
+      POSTGRES_PASSWORD: openpages
+      POSTGRES_DB: openpages
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: openpages
+      MINIO_ROOT_PASSWORD: openpagessecret
+    volumes:
+      - miniodata:/data
+volumes:
+  pgdata:
+  miniodata:
