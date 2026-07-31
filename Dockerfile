@@ -41,4 +41,4 @@ COPY --from=builder --chown=node:node /app/apps/saas/public ./apps/saas/public
 USER node
 EXPOSE 80
 VOLUME ["/data"]
-CMD ["sh", "-c", "if [ ! -f /data/openpages.db ]; then cp /app/apps/saas/prisma/seed.db /data/openpages.db; fi; node apps/saas/server.js"]
+CMD ["sh", "-c", "if [ ! -s /data/openpages.db ]; then cp /app/apps/saas/prisma/seed.db /data/openpages.db; fi; node apps/saas/server.js"]

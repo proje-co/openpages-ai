@@ -157,8 +157,10 @@ export function GlassSignUpCard({
           <label className="flex items-start gap-3 text-sm text-muted-foreground">
             <Checkbox
               id="sign-up-terms"
+              name="terms"
               checked={acceptedTerms}
-              onCheckedChange={(checked) => setAcceptedTerms(Boolean(checked))}
+              onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+              aria-required
             />
             <span>
               I agree to the{" "}
