@@ -12,14 +12,14 @@ FROM base AS builder
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/saas ./apps/saas
 COPY packages ./packages
-ENV NODE_ENV=production \
-    NODE_OPTIONS=--max-old-space-size=6144 \
-    DATABASE_URL="file:./build.db" \
+# Keep NODE_ENV unset during install so prisma (devDependency) is available.
+ENV DATABASE_URL="file:./build.db" \
     NEXTAUTH_URL="http://localhost:3000" \
-    NEXTAUTH_SECRET="build-time-secret"
+    NEXTAUTH_SECRET="build-time-secret" \
+    NODE_OPTIONS=--max-old-space-size=6144
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter @openpages/saas exec prisma generate \
-  && pnpm --filter @openpages/saas build
+  && NODE_ENV=production pnpm --filter @openpages/saas build
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
