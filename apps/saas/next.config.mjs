@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   typescript: {
     // Vendored ReUI uses radix-ui typings that conflict with Next typecheck.
     ignoreBuildErrors: true,
