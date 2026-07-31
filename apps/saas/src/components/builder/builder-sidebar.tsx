@@ -6,7 +6,6 @@ import {
   type BlockRegistryItem,
 } from "@openpages/blocks";
 import { useDraggable } from "@dnd-kit/core";
-import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import {
   Suspense,
@@ -93,13 +92,13 @@ function LivePreview({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(45,212,191,0.08),_transparent_60%)]" />
       {visible ? (
         <div
-          className="absolute left-1/2 top-1/2 origin-center"
+          className="pointer-events-none absolute left-1/2 top-1/2 origin-center"
           style={{
             width: `${100 / scale}%`,
             transform: `translate(-50%, -50%) scale(${scale})`,
           }}
         >
-          <div className="flex w-full items-center justify-center p-4 [&_a]:pointer-events-none [&_button]:pointer-events-none">
+          <div className="pointer-events-none flex w-full items-center justify-center p-4">
             <Suspense
               fallback={
                 <span className="text-[11px] text-muted-foreground">Loading…</span>
@@ -161,31 +160,42 @@ function PreviewCard({
 function DraggableComponent({
   component,
   scrollRoot,
+  onAdd,
 }: {
   component: BlockRegistryItem;
   scrollRoot: HTMLElement | null;
+  onAdd?: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: component.id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: component.id,
+    data: { fromLibrary: true, componentId: component.id },
+  });
+  const suppressClickRef = useRef(false);
 
-  const style = transform
-    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-    : undefined;
+  useEffect(() => {
+    if (isDragging) suppressClickRef.current = true;
+  }, [isDragging]);
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.99 }}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false;
+          return;
+        }
+        onAdd?.(component.id);
+      }}
       className={`cursor-grab rounded-xl border border-border/60 bg-card/80 p-2.5 backdrop-blur transition-colors hover:border-primary/60 hover:bg-accent/5 active:cursor-grabbing ${
-        isDragging ? "opacity-50" : ""
+        isDragging ? "opacity-40" : ""
       }`}
+      // Keep source in place; DragOverlay follows the pointer.
+      style={{ touchAction: "none" }}
     >
       <PreviewCard component={component} scrollRoot={scrollRoot} />
-    </motion.div>
+    </div>
   );
 }
 
@@ -367,7 +377,7 @@ export function BuilderSidebar({
           {searchQuery
             ? `${filtered.length} matches`
             : `${filtered.length} in ${categoryLabel(category)}`}
-          {" · previews load as you scroll"}
+          {" · drag or click to add"}
         </p>
       </div>
       <div
@@ -380,6 +390,7 @@ export function BuilderSidebar({
               key={component.id}
               component={component}
               scrollRoot={scrollRoot}
+              onAdd={onSelectComponent}
             />
           ) : (
             <button

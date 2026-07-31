@@ -325,13 +325,16 @@ export function BuilderCanvas({
         }}
       >
         {blocks.length === 0 ? (
-          <div className="flex h-[60vh] flex-col items-center justify-center border-2 border-dashed border-border/40 text-center">
+          <div
+            className={`flex min-h-[70vh] flex-col items-center justify-center border-2 border-dashed text-center transition-colors ${
+              isOver ? "border-primary bg-primary/5" : "border-border/40"
+            }`}
+          >
             <p className="text-lg font-medium" style={{ fontFamily: "var(--op-font-display)" }}>
               Drop blocks here
             </p>
             <p className="mt-2 max-w-sm text-sm opacity-70">
-              Start with Site Navbar, then add heroes, cards, and sections. Open Settings for fonts,
-              colors, SEO and AEO.
+              Drag from the library, or click a block to add it. Start with a Hero or Site Navbar.
             </p>
           </div>
         ) : (

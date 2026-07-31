@@ -10,9 +10,12 @@ import type {
 } from "@openpages/document-schema";
 import {
   DndContext,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
   PointerSensor,
+  closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -88,8 +91,16 @@ export function EditorShell({ siteId }: Props) {
   }, [document]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
+
+  // Library items live in a scroll container; pointer-based collision is required
+  // so drops onto the canvas register reliably.
+  const collisionDetection: CollisionDetection = (args) => {
+    const pointerHits = pointerWithin(args);
+    if (pointerHits.length > 0) return pointerHits;
+    return closestCenter(args);
+  };
 
   useEffect(() => {
     (async () => {
@@ -297,7 +308,8 @@ export function EditorShell({ siteId }: Props) {
 
     const activeStr = String(active.id);
     const overStr = String(over.id);
-    const fromLibrary = Boolean(findBlock(activeStr));
+    const fromLibrary =
+      Boolean(active.data.current?.fromLibrary) || Boolean(findBlock(activeStr));
     const existingIds = page.blocks.map((b) => b.id);
 
     if (!fromLibrary && existingIds.includes(activeStr) && existingIds.includes(overStr)) {
@@ -313,12 +325,12 @@ export function EditorShell({ siteId }: Props) {
     }
 
     if (fromLibrary) {
-      if (overStr === "builder-canvas") {
+      if (overStr === "builder-canvas" || overStr === "builder-canvas-empty") {
         addSection(activeStr);
         return;
       }
       const overIndex = existingIds.indexOf(overStr);
-      addSection(activeStr, overIndex >= 0 ? overIndex : undefined);
+      addSection(activeStr, overIndex >= 0 ? overIndex : page.blocks.length);
     }
   };
 
@@ -410,7 +422,12 @@ export function EditorShell({ siteId }: Props) {
             : "";
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetection}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <header className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card/70 px-4 py-2 backdrop-blur-xl">
           <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
@@ -517,7 +534,10 @@ export function EditorShell({ siteId }: Props) {
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[340px_1fr_360px]">
           <aside className="hidden min-h-0 overflow-hidden border-r border-border md:flex md:flex-col">
-            <BuilderSidebar onSelectComponent={(id) => addSection(id)} />
+            <BuilderSidebar
+              onSelectComponent={(id) => addSection(id)}
+              allowDrag
+            />
           </aside>
 
           <div className="min-h-0 overflow-hidden">
