@@ -34,10 +34,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
   && mkdir -p /data \
   && npm install -g prisma@6.1.0 \
   && chown -R node:node /data /app
-COPY --from=builder /app/apps/saas/public ./apps/saas/public
 COPY --from=builder --chown=node:node /app/apps/saas/.next/standalone ./
 COPY --from=builder --chown=node:node /app/apps/saas/.next/static ./apps/saas/.next/static
 COPY --from=builder --chown=node:node /app/apps/saas/prisma ./apps/saas/prisma
+COPY --from=builder --chown=node:node /app/apps/saas/public ./apps/saas/public
 USER node
 EXPOSE 80
 VOLUME ["/data"]
