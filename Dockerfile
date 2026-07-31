@@ -13,12 +13,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/saas ./apps/saas
 COPY packages ./packages
 # Keep NODE_ENV unset during install so prisma (devDependency) is available.
-ENV DATABASE_URL="file:./build.db" \
-    NEXTAUTH_URL="http://localhost:3000" \
+ENV NEXTAUTH_URL="http://localhost:3000" \
     NEXTAUTH_SECRET="build-time-secret" \
-    NODE_OPTIONS=--max-old-space-size=6144
+    NODE_OPTIONS=--max-old-space-size=6144 \
+    DATABASE_URL="file:/app/apps/saas/prisma/seed.db"
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter @openpages/saas exec prisma generate \
+  && pnpm --filter @openpages/saas exec prisma db push --skip-generate \
   && NODE_ENV=production pnpm --filter @openpages/saas build
 
 FROM node:22-bookworm-slim AS runner
@@ -32,7 +33,6 @@ ENV NODE_ENV=production \
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /data \
-  && npm install -g prisma@6.1.0 \
   && chown -R node:node /data /app
 COPY --from=builder --chown=node:node /app/apps/saas/.next/standalone ./
 COPY --from=builder --chown=node:node /app/apps/saas/.next/static ./apps/saas/.next/static
@@ -41,4 +41,4 @@ COPY --from=builder --chown=node:node /app/apps/saas/public ./apps/saas/public
 USER node
 EXPOSE 80
 VOLUME ["/data"]
-CMD ["sh", "-c", "prisma db push --schema=/app/apps/saas/prisma/schema.prisma --skip-generate && node apps/saas/server.js"]
+CMD ["sh", "-c", "if [ ! -f /data/openpages.db ]; then cp /app/apps/saas/prisma/seed.db /data/openpages.db; fi; node apps/saas/server.js"]
