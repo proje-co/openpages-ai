@@ -358,6 +358,7 @@ export function BuilderCanvas({
   return (
     <div
       ref={setNodeRef}
+      data-builder-canvas
       className={`h-full min-h-0 overflow-y-auto overscroll-contain bg-muted/30 p-4 md:p-6 ${
         isOver ? "bg-primary/5" : ""
       }`}

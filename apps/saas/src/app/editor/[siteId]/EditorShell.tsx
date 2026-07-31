@@ -12,6 +12,7 @@ import {
   DndContext,
   type CollisionDetection,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
   PointerSensor,
   closestCenter,
@@ -29,6 +30,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackgroundBuilderPanel } from "@/components/builder/background-builder";
 import {
   BuilderCanvas,
   type DevicePreview,
@@ -36,10 +38,13 @@ import {
 } from "@/components/builder/builder-canvas";
 import { BuilderSidebar } from "@/components/builder/builder-sidebar";
 import { BuilderDragOverlay } from "@/components/builder/drag-overlay";
-import { PageTabs } from "@/components/builder/page-tabs";
-import { GridGeneratorPanel } from "@/components/builder/grid-generator";
-import { BackgroundBuilderPanel } from "@/components/builder/background-builder";
 import { ElementInspector } from "@/components/builder/element-inspector";
+import { GridGeneratorPanel } from "@/components/builder/grid-generator";
+import {
+  isPointInRect,
+  resolveLibraryDrop,
+} from "@/components/builder/library-drop";
+import { PageTabs } from "@/components/builder/page-tabs";
 import { SiteSettingsPanel } from "@/components/builder/site-settings-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -80,6 +85,7 @@ export function EditorShell({ siteId }: Props) {
   const futureRef = useRef<SiteDocument[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const documentRef = useRef<SiteDocument | null>(null);
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   const page = useMemo(
     () => document?.pages.find((p) => p.id === pageId) ?? document?.pages[0],
@@ -278,60 +284,122 @@ export function EditorShell({ siteId }: Props) {
 
   const addSection = useCallback(
     (animationId: string, index?: number) => {
-      if (!findBlock(animationId) || !page) return;
+      if (!findBlock(animationId)) return;
+      const current = documentRef.current;
+      const activePageId = pageId || current?.pages[0]?.id;
+      if (!current || !activePageId) return;
+      const activePage = current.pages.find((p) => p.id === activePageId);
+      if (!activePage) return;
+
       const block: Block = {
         id: newId(),
         type: "UitripledSection",
         animationId,
       };
-      updateActivePage((p) => {
-        const blocks = [...p.blocks];
-        if (typeof index === "number") blocks.splice(index, 0, block);
-        else blocks.push(block);
-        return { ...p, blocks };
-      });
+      const blocks = [...activePage.blocks];
+      if (typeof index === "number") blocks.splice(index, 0, block);
+      else blocks.push(block);
+
+      const next = structuredClone(current);
+      next.pages = next.pages.map((p) =>
+        p.id === activePageId ? { ...p, blocks } : p,
+      );
+      commitDocument(next);
       setBlockId(block.id);
       setRightTab("inspect");
     },
-    [page, updateActivePage],
+    [pageId, commitDocument],
   );
+
+  const pointerOverCanvas = useCallback(() => {
+    const pt = dragPointerRef.current;
+    if (!pt || typeof globalThis.document === "undefined") return false;
+    const canvas = globalThis.document.querySelector("[data-builder-canvas]");
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      if (isPointInRect(pt.x, pt.y, rect)) return true;
+    }
+    const el = globalThis.document.elementFromPoint(pt.x, pt.y);
+    return Boolean(el?.closest("[data-builder-canvas]"));
+  }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
+    dragPointerRef.current = null;
+  };
+
+  const handleDragMove = (event: DragMoveEvent) => {
+    const translated = event.active.rect.current.translated;
+    if (translated) {
+      dragPointerRef.current = {
+        x: translated.left + translated.width / 2,
+        y: translated.top + translated.height / 2,
+      };
+      return;
+    }
+    const activator = event.activatorEvent;
+    if (activator && "clientX" in activator) {
+      dragPointerRef.current = {
+        x: (activator as PointerEvent).clientX + event.delta.x,
+        y: (activator as PointerEvent).clientY + event.delta.y,
+      };
+    }
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+    dragPointerRef.current = null;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
-    if (!page) return;
-    const { active, over } = event;
-    if (!over) return;
+    const current = documentRef.current;
+    const activePageId = pageId || current?.pages[0]?.id;
+    if (!current || !activePageId) {
+      dragPointerRef.current = null;
+      return;
+    }
+    const activePage = current.pages.find((p) => p.id === activePageId);
+    if (!activePage) {
+      dragPointerRef.current = null;
+      return;
+    }
 
+    const { active, over } = event;
     const activeStr = String(active.id);
-    const overStr = String(over.id);
     const fromLibrary =
       Boolean(active.data.current?.fromLibrary) || Boolean(findBlock(activeStr));
-    const existingIds = page.blocks.map((b) => b.id);
+    const existingIds = activePage.blocks.map((b) => b.id);
 
-    if (!fromLibrary && existingIds.includes(activeStr) && existingIds.includes(overStr)) {
+    if (
+      !fromLibrary &&
+      over &&
+      existingIds.includes(activeStr) &&
+      existingIds.includes(String(over.id))
+    ) {
       const oldIndex = existingIds.indexOf(activeStr);
-      const newIndex = existingIds.indexOf(overStr);
+      const newIndex = existingIds.indexOf(String(over.id));
       if (oldIndex !== newIndex) {
         updateActivePage((p) => ({
           ...p,
           blocks: arrayMove(p.blocks, oldIndex, newIndex),
         }));
       }
+      dragPointerRef.current = null;
       return;
     }
 
     if (fromLibrary) {
-      if (overStr === "builder-canvas" || overStr === "builder-canvas-empty") {
-        addSection(activeStr);
-        return;
-      }
-      const overIndex = existingIds.indexOf(overStr);
-      addSection(activeStr, overIndex >= 0 ? overIndex : page.blocks.length);
+      const plan = resolveLibraryDrop({
+        overId: over ? String(over.id) : null,
+        existingBlockIds: existingIds,
+        pointerOverCanvas: pointerOverCanvas(),
+      });
+      if (plan.action === "append") addSection(activeStr);
+      else if (plan.action === "insert") addSection(activeStr, plan.index);
     }
+
+    dragPointerRef.current = null;
   };
 
   async function sendChat() {
@@ -426,7 +494,9 @@ export function EditorShell({ siteId }: Props) {
       sensors={sensors}
       collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
         <header className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card/70 px-4 py-2 backdrop-blur-xl">

@@ -6,7 +6,7 @@ import {
   type BlockRegistryItem,
 } from "@openpages/blocks";
 import { useDraggable } from "@dnd-kit/core";
-import { Search } from "lucide-react";
+import { GripVertical, Search } from "lucide-react";
 import {
   Suspense,
   useEffect,
@@ -170,31 +170,41 @@ function DraggableComponent({
     id: component.id,
     data: { fromLibrary: true, componentId: component.id },
   });
-  const suppressClickRef = useRef(false);
-
-  useEffect(() => {
-    if (isDragging) suppressClickRef.current = true;
-  }, [isDragging]);
 
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      onClick={() => {
-        if (suppressClickRef.current) {
-          suppressClickRef.current = false;
-          return;
-        }
-        onAdd?.(component.id);
-      }}
-      className={`cursor-grab rounded-xl border border-border/60 bg-card/80 p-2.5 backdrop-blur transition-colors hover:border-primary/60 hover:bg-accent/5 active:cursor-grabbing ${
+      className={`rounded-xl border border-border/60 bg-card/80 p-2.5 backdrop-blur transition-colors hover:border-primary/60 hover:bg-accent/5 ${
         isDragging ? "opacity-40" : ""
       }`}
-      // Keep source in place; DragOverlay follows the pointer.
-      style={{ touchAction: "none" }}
     >
-      <PreviewCard component={component} scrollRoot={scrollRoot} />
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          className="inline-flex cursor-grab items-center rounded border border-border/60 bg-background/80 p-1 text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          title="Drag onto canvas"
+          aria-label={`Drag ${component.name} onto canvas`}
+          {...listeners}
+          {...attributes}
+          style={{ touchAction: "none" }}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20"
+          onClick={() => onAdd?.(component.id)}
+        >
+          Add
+        </button>
+      </div>
+      <button
+        type="button"
+        className="w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        onClick={() => onAdd?.(component.id)}
+      >
+        <PreviewCard component={component} scrollRoot={scrollRoot} />
+      </button>
     </div>
   );
 }
@@ -377,7 +387,7 @@ export function BuilderSidebar({
           {searchQuery
             ? `${filtered.length} matches`
             : `${filtered.length} in ${categoryLabel(category)}`}
-          {" · drag or click to add"}
+          {" · click to add · drag handle to place"}
         </p>
       </div>
       <div
