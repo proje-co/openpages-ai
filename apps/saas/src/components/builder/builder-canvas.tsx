@@ -16,8 +16,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
+
+/** Fires once when lazy block content finishes mounting so we can catalog editables. */
+function ContentReady({ onReady }: { onReady: () => void }) {
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  useEffect(() => {
+    onReadyRef.current();
+  }, []);
+  return null;
+}
 
 export type DevicePreview = "desktop" | "tablet" | "mobile";
 
@@ -68,6 +78,7 @@ function CanvasItem({
   onElementTextCommit: (blockId: string, nodeId: string, text: string) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [contentEpoch, setContentEpoch] = useState(0);
   const {
     attributes,
     listeners,
@@ -79,6 +90,12 @@ function CanvasItem({
   } = useSortable({ id: block.id });
 
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const blockElementsRef = useRef(
+    block.type === "UitripledSection" ? block.elements : undefined,
+  );
+  if (block.type === "UitripledSection") {
+    blockElementsRef.current = block.elements;
+  }
   const onCatalogRef = useRef(onCatalog);
   const onSelectBlockRef = useRef(onSelectBlock);
   const onSelectElementRef = useRef(onSelectElement);
@@ -99,7 +116,7 @@ function CanvasItem({
         })
       : "";
 
-  useEffect(() => {
+  const syncCatalog = () => {
     const container = contentRef.current;
     if (!container || block.type !== "UitripledSection") return;
 
@@ -110,8 +127,12 @@ function CanvasItem({
         ? document.activeElement
         : null;
 
-    const elementsForApply = { ...(block.elements ?? {}) };
-    const textForApply = { ...(block.textContent ?? {}) };
+    const elementsForApply = {
+      ...((block.type === "UitripledSection" ? block.elements : undefined) ?? {}),
+    };
+    const textForApply = {
+      ...((block.type === "UitripledSection" ? block.textContent : undefined) ?? {}),
+    };
     if (focused?.dataset.builderTextId) {
       const fid = focused.dataset.builderTextId;
       if (elementsForApply[fid]) {
@@ -127,12 +148,32 @@ function CanvasItem({
       textForApply,
     );
     onCatalogRef.current(block.id, catalogResult.elements);
+  };
+
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container || block.type !== "UitripledSection") return;
+
+    syncCatalog();
+
+    const observer = new MutationObserver(() => {
+      // Lazy sections mount asynchronously — re-tag editables when DOM appears.
+      syncCatalog();
+    });
+    observer.observe(container, { childList: true, subtree: true });
 
     const onClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      if (!target) return;
-      const editable = target.closest<HTMLElement>("[data-builder-text-id]");
+      if (!target || target.closest("[data-builder-chrome]")) return;
+
+      // Ensure tags exist even if observer hasn't fired yet.
+      let editable = target.closest<HTMLElement>("[data-builder-text-id]");
+      if (!editable || !container.contains(editable)) {
+        syncCatalog();
+        editable = target.closest<HTMLElement>("[data-builder-text-id]");
+      }
       if (!editable || !container.contains(editable)) return;
+
       event.preventDefault();
       event.stopPropagation();
 
@@ -173,7 +214,7 @@ function CanvasItem({
           href,
           styles: {
             ...readInlineStyles(editable),
-            ...(block.elements?.[nodeId]?.styles ?? {}),
+            ...(blockElementsRef.current?.[nodeId]?.styles ?? {}),
           },
         },
         fresh.elements,
@@ -191,14 +232,16 @@ function CanvasItem({
       );
     };
 
-    container.addEventListener("click", onClick);
+    container.addEventListener("click", onClick, true);
     container.addEventListener("blur", onBlurCommit, true);
 
     return () => {
-      container.removeEventListener("click", onClick);
+      observer.disconnect();
+      container.removeEventListener("click", onClick, true);
       container.removeEventListener("blur", onBlurCommit, true);
     };
-  }, [block.id, block.type, elementsKey, selectedNodeId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- syncCatalog closes over latest block via refs/deps below
+  }, [block.id, block.type, elementsKey, selectedNodeId, contentEpoch]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -210,8 +253,6 @@ function CanvasItem({
     <motion.div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       onClick={(e) => {
         e.stopPropagation();
         onSelectBlock(block.id);
@@ -226,7 +267,7 @@ function CanvasItem({
             : isDragging
               ? "border-border opacity-50"
               : "border-border hover:border-primary"
-      } cursor-grab`}
+      }`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -249,21 +290,30 @@ function CanvasItem({
           </motion.button>
         ) : null}
       </AnimatePresence>
-      <div data-builder-chrome className="mb-2 text-xs font-medium text-muted-foreground">
-        {entry?.name || block.type}
+      <div
+        data-builder-chrome
+        className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground"
+      >
+        <button
+          type="button"
+          className="inline-flex cursor-grab items-center rounded border border-border/60 bg-background/80 p-1 text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          title="Drag to reorder"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <span className="truncate">{entry?.name || block.type}</span>
       </div>
       <div
         ref={contentRef}
         className="relative w-full overflow-hidden rounded-lg bg-background"
-        onPointerDown={(e) => {
-          if ((e.target as HTMLElement).closest("[data-builder-text-id]")) {
-            e.stopPropagation();
-          }
-        }}
       >
         {Component ? (
           <Suspense fallback={<p className="p-4 text-sm text-muted-foreground">Loading…</p>}>
             <Component />
+            <ContentReady onReady={() => setContentEpoch((n) => n + 1)} />
           </Suspense>
         ) : (
           <p className="p-4 text-sm">Unknown block</p>
